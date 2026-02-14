@@ -113,6 +113,31 @@ def admin_login():
     return redirect('/login')
 
 
+import traceback
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if hasattr(e, "code") and e.code < 500:
+        return e
+    # Handle non-HTTP exceptions only
+    error_info = {
+        "error": str(e),
+        "traceback": traceback.format_exc(),
+        "type": type(e).__name__
+    }
+    return jsonify(error_info), 500
+
+@app.route("/debug-env")
+def debug_env():
+    return jsonify({
+        "cwd": os.getcwd(),
+        "files": os.listdir("."),
+        "templates": os.listdir("templates") if os.path.exists("templates") else "missing",
+        "mongo_uri_set": bool(os.getenv("MONGO_URI")),
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY"))
+    })
+
 @app.route("/request-call", methods=["POST"])
 def request_call():
     data = request.json
@@ -1637,7 +1662,7 @@ def download_html(app_name):
     <body>
     <h2>{app_name} Form</h2>
 
-    <form action="http://127.0.0.1:5000/api/submit/YOUR_API_KEY" method="POST">
+    <form action="{request.host_url}api/submit/YOUR_API_KEY" method="POST">
     """
 
     for field in fields:
