@@ -47,10 +47,19 @@ app.secret_key = FLASK_SECRET_KEY
 app.config["MONGO_URI"] = MONGO_URI
 
 # initialize mongo
+# Use connect=False and tlsAllowInvalidCertificates for robust connection in Vercel
 ca = certifi.where()
-mongo = PyMongo(app, tlsCAFile=ca)
-client = MongoClient(MONGO_URI, tlsCAFile=ca)
-db = client.get_database() # Automatically picks up DB name from URI
+client = MongoClient(
+    MONGO_URI, 
+    tls=True,
+    tlsCAFile=ca,
+    tlsAllowInvalidCertificates=True, 
+    connect=False,
+    connectTimeoutMS=30000,
+    serverSelectionTimeoutMS=30000
+)
+db = client.get_database("voice_agent_db") # Explicitly named database
+mongo = PyMongo(app, tls=True, tlsCAFile=ca, tlsAllowInvalidCertificates=True)
 
 if not OPENAI_API_KEY:
     logger.warning("OPENAI_API_KEY is not set. AI features may not work.")
