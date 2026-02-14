@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, Response, session
 from bson import ObjectId
-from flask_pymongo import PyMongo
+# from flask_pymongo import PyMongo # Removed for stability
 import certifi
 
 
@@ -40,26 +40,37 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/voice_agent_db")
+if "mongodb+srv" in MONGO_URI and "tlsAllowInvalidCertificates" not in MONGO_URI:
+    if "?" in MONGO_URI:
+        MONGO_URI += "&tlsAllowInvalidCertificates=true"
+    else:
+        MONGO_URI += "?tlsAllowInvalidCertificates=true"
 RETELL_WEBHOOK = os.getenv("RETELL_WEBHOOK_URL")
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev_secret_key")
 
 app.secret_key = FLASK_SECRET_KEY
 app.config["MONGO_URI"] = MONGO_URI
-
 # initialize mongo
-# Use connect=False and tlsAllowInvalidCertificates for robust connection in Vercel
-ca = certifi.where()
-client = MongoClient(
-    MONGO_URI, 
-    tls=True,
-    tlsCAFile=ca,
-    tlsAllowInvalidCertificates=True, 
-    connect=False,
-    connectTimeoutMS=30000,
-    serverSelectionTimeoutMS=30000
-)
-db = client.get_database("voice_agent_db") # Explicitly named database
-mongo = PyMongo(app, tls=True, tlsCAFile=ca, tlsAllowInvalidCertificates=True)
+# Use connect=False and serverSelectionTimeoutMS for robust connection in Vercel
+# TLSV1_ALERT_INTERNAL_ERROR usually means IP Whitelist or SNI mismatch
+try:
+    ca = certifi.where()
+    # Create the client ONCE
+    client = MongoClient(
+        MONGO_URI,
+        tls=True,
+        tlsCAFile=ca,
+        tlsAllowInvalidCertificates=True,
+        connect=False,
+        serverSelectionTimeoutMS=10000,
+        connectTimeoutMS=10000,
+        retryWrites=True,
+        w="majority"
+    )
+    # The 'db' object can now be used everywhere instead of mongo.db
+    db = client.get_database("voice_agent_db")
+except Exception as e:
+    logger.error(f"Failed to setup MongoDB Client: {e}")
 
 if not OPENAI_API_KEY:
     logger.warning("OPENAI_API_KEY is not set. AI features may not work.")
@@ -1141,7 +1152,7 @@ def view_submissions(app_name):
 def application_settings(app_name):
 
     # get application from DB
-    app_data = mongo.db.applications.find_one({"app_name": app_name})
+    app_data = db.applications.find_one({"app_name": app_name})
 
     if not app_data:
         return "Application not found"
@@ -1154,7 +1165,7 @@ def application_settings(app_name):
         public_form = True if request.form.get("public_form") == "on" else False
         llm_enabled = True if request.form.get("llm_enabled") == "on" else False
 
-        mongo.db.applications.update_one(
+        db.applications.update_one(
             {"_id": app_data["_id"]},
             {
                 "$set": {
@@ -1215,7 +1226,7 @@ def submit_form(app_name):
     data["app_name"] = app_name
     data["created_at"] = datetime.utcnow()
 
-    mongo.db.submissions.insert_one(data)
+    db.submissions.insert_one(data)
 
     return redirect(f"/client/application/{app_name}/open")
 
