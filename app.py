@@ -9,6 +9,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, R
 from flask_cors import CORS
 from twilio.rest import Client
 from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 from openai import OpenAI
 from dotenv import load_dotenv
 from bson import ObjectId
@@ -42,8 +43,7 @@ if MONGO_URI:
         # tlsCAFile=certifi.where() is the most reliable way to handle SSL on Vercel
         client = MongoClient(
             MONGO_URI,
-            tls=True,
-            tlsCAFile=certifi.where(),
+            server_api=ServerApi('1'),
             connect=False,
             serverSelectionTimeoutMS=10000
         )
