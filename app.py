@@ -464,7 +464,7 @@ def profile():
     # Fetch updated data
     data = col.find_one({"email": email})
 
-    return render_template("profile.html", data=data, role=role)
+    return render_template("profile.html", profile=data, role=role)
 
 
 
@@ -1080,7 +1080,8 @@ def save_form(app_name):
 def public_form(app_name):
 
     form = db.app_forms.find_one({
-        "app_name": app_name
+        "app_name": app_name,
+        "fields": {"$exists": True, "$ne": []}
     })
 
     if not form:
@@ -1090,8 +1091,9 @@ def public_form(app_name):
 
     return render_template(
         "client_open_form.html",
-        fields=fields,     # 👈 IMPORTANT
-        app_name=app_name
+        fields=fields,
+        app_name=app_name,
+        api_key=form.get("api_key")
     )
 
 
