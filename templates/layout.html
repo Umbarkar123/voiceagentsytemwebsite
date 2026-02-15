@@ -59,7 +59,7 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     </div>
 </div>
 
-<<div id="discordCard" class="discord-card">
+<div id="discordCard" class="discord-card">
 
     <div class="dc-cover"></div>
 
@@ -71,7 +71,8 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
 
         <!-- Edit + Status -->
         <div class="dc-card">
-            <a href="/profile" class="dc-row" style="text-decoration: none;">
+    <a href="/profile" class="dc-row" style="text-decoration: none;" onclick="event.stopPropagation();">
+
                 <i class="fa fa-pen"></i>
                 Edit Profile
                 <span class="badge">NEW</span>
@@ -199,7 +200,6 @@ function toggleBiz(){
     b.style.display = b.style.display === "block" ? "none" : "block";
 }
 
-<script>
 function showToast(msg){
     const toast = document.getElementById("toast");
     toast.innerText = msg;
@@ -209,7 +209,6 @@ function showToast(msg){
         toast.classList.remove("show");
     }, 2500);
 }
-</script>
 
 </script>
 
@@ -461,6 +460,7 @@ function showToast(msg){
 
     display:flex;
     flex-direction:column;
+    justify-content:space-between;
 }
 /* Sidebar top brand block */
 .sidebar-header{
@@ -487,9 +487,24 @@ function showToast(msg){
 }
 /* Menu moves down automatically */
 .nav-links{
-    padding:18px 14px;
-    margin-top:6px;
+    padding: 20px 16px;
 }
+
+.nav-links a{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 10px 14px;
+    margin-bottom: 8px;
+
+    border-radius: 10px;
+}
+.nav-links a:hover{
+    transform: translateX(3px);
+    background: rgba(88,101,242,0.15);
+}
+
 .toast{
     position:fixed;
     bottom:25px;
