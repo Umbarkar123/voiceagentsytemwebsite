@@ -1006,7 +1006,7 @@ def open_form_builder(app_name):
 
     client_id = session.get("client_id")
 
-    custom_form = db.app_forms.find_one({
+    custom_form = db.form_builders.find_one({
         "client_id": client_id,
         "app_name": app_name
     })
@@ -1020,10 +1020,12 @@ def open_form_builder(app_name):
 
         fields = template.get("fields", []) if template else []
 
-        db.app_forms.insert_one({
+        # Initialize with template fields if no form exists
+        db.form_builders.insert_one({
             "client_id": client_id,
             "app_name": app_name,
-            "fields": fields
+            "fields": fields,
+            "api_key": uuid4().hex
         })
 
     return render_template(
@@ -1076,12 +1078,12 @@ def save_form(app_name):
 
 
 # PUBLIC FORM (used by copy link + preview)
-@app.route("/form/<app_name>")
-def public_form(app_name):
+@app.route("/form/<client_id>/<app_name>")
+def public_form(client_id, app_name):
 
-    form = db.app_forms.find_one({
-        "app_name": app_name,
-        "fields": {"$exists": True, "$ne": []}
+    form = db.form_builders.find_one({
+        "client_id": client_id,
+        "app_name": app_name
     })
 
     if not form:
@@ -1091,21 +1093,35 @@ def public_form(app_name):
 
     return render_template(
         "client_open_form.html",
+        form=form,
         fields=fields,
         app_name=app_name,
         api_key=form.get("api_key")
     )
 
-
-# PREVIEW BUTTON ROUTE
+# Legacy route for backward compatibility - redirects to unique URL if possible
+@app.route("/form/<app_name>")
+def legacy_public_form(app_name):
+    client_id = session.get("client_id")
+    if client_id:
+        return redirect(f"/form/{client_id}/{app_name}")
+    
+    # Fallback to search if no session (not ideal, but prevents total breakage)
+    form = db.form_builders.find_one({"app_name": app_name})
+    if form:
+        return redirect(f"/form/{form['client_id']}/{app_name}")
+    
+    return "Form not found"
 
 @app.route("/client/application/<app_name>/preview")
 def preview_application(app_name):
 
     if "role" not in session:
         return redirect("/login")
+        
+    client_id = session.get("client_id")
 
-    return redirect(f"/form/{app_name}")
+    return redirect(f"/form/{client_id}/{app_name}")
 
 
 
@@ -1376,7 +1392,7 @@ def save_form_builder():
     fields = data.get("fields")
 
     # generate api key if not exists
-    existing = db.app_forms.find_one({
+    existing = db.form_builders.find_one({
         "client_id": client_id,
         "app_name": app_name
     })
@@ -1386,7 +1402,7 @@ def save_form_builder():
     else:
         api_key = uuid4().hex
 
-    db.app_forms.update_one(
+    db.form_builders.update_one(
         {
             "client_id": client_id,
             "app_name": app_name
